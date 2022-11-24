@@ -51,17 +51,20 @@ curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
 
 greet
 
-
 [ ! -d ~/.local ] && mkdir ~/.local
 [ ! -d ~/.local/share ] && mkdir ~/.local/share
 [ ! -d ~/.local/share/fonts ] && mkdir ~/.local/share/fonts
 
 # Installing Fonts for user
 cp -r ./fonts/* ~/.local/share/fonts/
-fc-cache -f
+fc-cache -f | lolcat -a
 
 # Make .src dir on home for storing build files which will be deleted at last
 mkdir ~/.src
+
+# Install LY
+git clone --recurse-submodules https://github.com/fairyglade/ly ~/.src/ly
+(cd ~/.src/ly/ && make && sudo make install installsystemd )
 
 # Install Paru
 if ! command -v paru &> /dev/null
@@ -71,10 +74,10 @@ then
 fi
 
 # Terminal part
-sudo pacman -S --noconfirm ttf-fira-code alacritty tmux starship
+sudo pacman -S --noconfirm ttf-fira-code alacritty tmux starship | lolcat
 
 # others
-sudo pacman -S --noconfirm flatpak neovim pipewire
+sudo pacman -S --noconfirm flatpak neovim pipewire | lolcat
 
 paru -S amberol
 
@@ -115,12 +118,11 @@ else
 fi
 
 echo "[+] Configuring Tmux" | lolcat -a
-if [ ! -d ~/.config/tmux ]; then
-    mkdir ~/.config/tmux
-    cp ./tmux/.tmux.conf ~/.config/tmux/.tmux.conf
+if [ ! -f ~/.tmux.conf ]; then
+    cp ./tmux/.tmux.conf ~/.tmux.conf
 else
-    mv ~/.config/tmux/.tmux.conf ~/.config/tmux/.tmux.conf.old
-    cp ./tmux/.tmux.conf ~/.config/tmux/.tmux.conf
+    mv ~/.tmux.conf ~/.tmux.conf.old
+    cp ./tmux/.tmux.conf ~/.tmux.conf
 fi
 
 echo "[+] Loading tmux configuration" | lolcat -a
@@ -136,8 +138,8 @@ echo "[+] Configuring zsh paths" | lolcat -a
 cp ./zsh/.zshenv ~/.zshenv
 source ~/.zshenv
 
-echo "[+] Setting up Starship" | lolcat -a
-echo "eval \"$(starship init zsh)\"" >> ~/.zshrc
+echo "[+] Setting ZSH as default shell"
+chsh -s $(which zsh)
 
 echo "
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⡀⠀⠀⠀⠀⢲⡀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -162,5 +164,9 @@ echo "
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⢟⣦⡀⠀⡇⢀⡾⠁⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠹⣿⣤⣷⠋⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠐⣟⠁⠀⠀⠀⠀⠀⠀
-"
-sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+" | lolcat -a -d 1
+
+sudo pacman -S --noconfirm gnome gnome-tweaks
+sudo pacman -Rns gdm --noconfirm
+
+systemctl enable ly.service
