@@ -45,7 +45,7 @@ set -e
 echo "[+] Performing pre-installation update\n"
 sudo pacman --noconfirm -Syy
 sudo pacman --noconfirm -Syu
-sudo pacman -S --noconfirm base-devel lolcat dart rust
+sudo pacman -S --noconfirm base-devel lolcat dart rust pyenv zsh
 curl https://bun.sh/install | bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
 sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
@@ -68,7 +68,7 @@ then
 fi
 
 # Terminal part
-sudo pacman -S --noconfirm ttf-fira-code alacritty tmux zsh starship
+sudo pacman -S --noconfirm ttf-fira-code alacritty tmux starship
 
 # others
 sudo pacman -S --noconfirm flatpak neovim pipewire
