@@ -53,7 +53,7 @@ greet
 
 
 # Installing Fonts for user
-[ ! -d ~/.config ] && mkdir ~/.local ~/.local/share ~/.local/share/fonts
+[ ! -d ~/.local ] && mkdir ~/.local ~/.local/share ~/.local/share/fonts
 
 cp -r ./fonts/* ~/.local/share/fonts/
 fc-cache -f
