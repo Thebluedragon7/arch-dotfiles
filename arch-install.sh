@@ -66,8 +66,8 @@ mkdir ~/.src
 # Install Paru
 if ! command -v paru &> /dev/null
 then
-    git clone https://aur.archlinux.org/paru.git ~/.src
-    (cd ~/.srcs/paru/ && makepkg -si )
+    git clone https://aur.archlinux.org/paru.git ~/.src/paru
+    (cd ~/.src/paru/ && makepkg -si )
 fi
 
 # Terminal part
