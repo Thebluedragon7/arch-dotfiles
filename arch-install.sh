@@ -48,12 +48,13 @@ sudo pacman --noconfirm -Syu
 sudo pacman -S --noconfirm base-devel lolcat dart rust pyenv zsh
 curl https://bun.sh/install | bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
-sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 
 greet
 
 
 # Installing Fonts for user
+[ ! -d ~/.config ] && mkdir ~/.local ~/.local/share ~/.local/share/fonts
+
 cp -r ./fonts/* ~/.local/share/fonts/
 fc-cache -f
 
@@ -160,3 +161,4 @@ echo "
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠹⣿⣤⣷⠋⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠐⣟⠁⠀⠀⠀⠀⠀⠀
 "
+sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
