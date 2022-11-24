@@ -52,13 +52,11 @@ curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
 greet
 
 
-# Installing Fonts for user
-if [ ! -d ~/.local ]; then
-    mkdir ~/.local
-    mkdir ~/.local/share
-    mkdir ~/.local/share/fonts
-fi
+[ ! -d ~/.local ] && mkdir ~/.local
+[ ! -d ~/.local/share ] && mkdir ~/.local/share
+[ ! -d ~/.local/share/fonts ] && mkdir ~/.local/share/fonts
 
+# Installing Fonts for user
 cp -r ./fonts/* ~/.local/share/fonts/
 fc-cache -f
 
