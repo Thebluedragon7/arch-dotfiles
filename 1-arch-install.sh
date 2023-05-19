@@ -40,7 +40,6 @@ paru -S flatseal touchegg --noconfirm
 echo "[+] Installing VimPlug" | lolcat -a
 paru -S --noconfirm vim-plug
 
-# TODO: init.vim
 echo "[+] Configuring NeoVim" | lolcat -a
 if [ ! -d ~/.config/nvim ]; then
     mkdir ~/.config/nvim
