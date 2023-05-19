@@ -58,7 +58,6 @@ else
     ln -s ./kitty/kitty.conf ~/.config/kitty.conf
 fi
 
-# TODO: touchegg.conf
 echo "[+] Configuring touchegg" | lolcat -a
 if [ ! -d ~/.config/touchegg ]; then
     mkdir ~/.config/touchegg
