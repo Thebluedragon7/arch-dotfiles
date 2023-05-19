@@ -1,42 +1,4 @@
-## **The Blue Dragon's Nuclea-X Configuration**
-
-Generic Setup:
-
-- Terminal: Alacritty
-- Terminal Prompt: Starship
-- Audio Player: Amberol
-- Video Player: VLC
-- Package Managers: Flatpak, apt, pacman
-- AUR helper: Paru
-- Gesture Setup: Touchegg
-
-Audio and Media Setup:
-
-- Pipewire
-- Helvum
-- QPWgraph
-- EasyEffects
-- Audacity
-- OBS Studio
-
-Terminal Utilities:
-
-- lsd
-- bat
-- bpytop
-- ffmpeg
-- yt-dlp
-
-Dev Setup:
-
-- neovim
-- docker, docker-compose
-- dart-sdk
-- sdkman
-- nvm
-- bun
-- pyenv
-- rbenv
+## **Thebluedragon7 Arch Linux dot files**
 
 ### **Alacritty Configuration**
 
@@ -91,6 +53,6 @@ copy `./neovim/` to
 :PlugInstall
 ```
 
-### **NeoVim**
+### **TMUX**
 
 `./tmux/.tmux.conf` to `~/.tmux.conf`
