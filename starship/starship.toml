@@ -22,7 +22,7 @@ format = "via [🎯 $version](bold red) "
 symbol = "☕ "
 
 [kotlin]
-symbol = "🅺 "
+symbol = "◄ "
 
 [nodejs]
 format = "via [🤖 $version](bold green) "
