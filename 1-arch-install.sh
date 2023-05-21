@@ -49,7 +49,6 @@ else
     ln -s ./nvim/init.vim ~/.config/nvim/init.vim
 fi
 
-# TODO: kitty.conf
 echo "[+] Configuring kitty" | lolcat -a
 if [ ! -f ~/.config/kitty.conf ]; then
     ln -s ./kitty/kitty.conf ~/.config/kitty.conf
