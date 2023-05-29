@@ -57,6 +57,14 @@ else
     ln -s ~/arch-dotfiles/kitty/kitty.conf ~/.config/kitty.conf
 fi
 
+echo "[+] Configuring Alacritty" | lolcat -a
+if [ ! -f ~/.config/alacritty.yml]; then
+    ln -s ~/arch-dotfiles/alacritty/alacritty.yml ~/.config/alacritty/alacritty.yml
+else
+    mv ~/.config/alacritty.yml ~/.config/alacritty.yml.old
+    ln -s ~/arch-dotfiles/alacritty/alacritty.yml ~/.config/alacritty.yml
+fi
+
 echo "[+] Configuring touchegg" | lolcat -a
 if [ ! -d ~/.config/touchegg ]; then
     mkdir ~/.config/touchegg

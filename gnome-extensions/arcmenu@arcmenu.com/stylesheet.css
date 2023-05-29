@@ -62,6 +62,10 @@
     margin: 0px;
 }
 
+.bottomOfScreenMenu{
+    margin-bottom: 0px;
+}
+
 .arcmenu-search-entry{
     min-height: 0px;
     border-width: 1px;
@@ -122,7 +126,7 @@
     border-color: rgb(61, 174, 235);
 }
 
-StScrollView .small-vfade{
+.small-vfade{
     -st-vfade-offset: 44px;
 }
 
@@ -142,14 +146,10 @@ StScrollView .small-vfade{
     min-height: 0px;
 }
 
-.arcmenu-small-button{
-    -st-icon-style: symbolic;
+.arcmenu-small-button {
     border-radius: 8px;
-    padding: 3px 8px;
-    margin: 0px;
-}
-.arcmenu-small-button:hover{
-    background-color: rgba(255, 255, 255, 0.1);
+    padding: 1px 6px;
+    min-height: auto;
 }
 
 .arcmenu-avatar-round{
@@ -162,10 +162,10 @@ StScrollView .small-vfade{
 }
 
 .arcmenu-tooltip{
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.25);
     padding: 4px 10px;
     box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
-    max-width: 550px;
+    max-width: 400px;
     min-height: 0px;
 }
 

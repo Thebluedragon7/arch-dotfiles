@@ -30,7 +30,10 @@ try {
 
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me             = imports.misc.extensionUtils.getCurrentExtension();
+const migrate        = Me.imports.src.migrate;
 const utils          = Me.imports.src.utils;
+const ProfileManager = Me.imports.src.ProfileManager.ProfileManager;
+const WindowPicker   = Me.imports.src.WindowPicker.WindowPicker;
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // This extensions modifies the window-close and window-open animations with all kinds  //
@@ -51,23 +54,26 @@ class Extension {
 
     // New effects must be registered here and in prefs.js.
     this._ALL_EFFECTS = [
-      new Me.imports.src.Apparition.Apparition(),
-      new Me.imports.src.BrokenGlass.BrokenGlass(),
-      new Me.imports.src.Doom.Doom(),
-      new Me.imports.src.EnergizeA.EnergizeA(),
-      new Me.imports.src.EnergizeB.EnergizeB(),
-      new Me.imports.src.Fire.Fire(),
-      new Me.imports.src.Glide.Glide(),
-      new Me.imports.src.Hexagon.Hexagon(),
-      new Me.imports.src.Incinerate.Incinerate(),
-      new Me.imports.src.Matrix.Matrix(),
-      new Me.imports.src.Pixelate.Pixelate(),
-      new Me.imports.src.PixelWheel.PixelWheel(),
-      new Me.imports.src.PixelWipe.PixelWipe(),
-      new Me.imports.src.SnapOfDisintegration.SnapOfDisintegration(),
-      new Me.imports.src.TRexAttack.TRexAttack(),
-      new Me.imports.src.TVEffect.TVEffect(),
-      new Me.imports.src.Wisps.Wisps(),
+      new Me.imports.src.effects.Apparition.Apparition(),
+      new Me.imports.src.effects.BrokenGlass.BrokenGlass(),
+      new Me.imports.src.effects.Doom.Doom(),
+      new Me.imports.src.effects.EnergizeA.EnergizeA(),
+      new Me.imports.src.effects.EnergizeB.EnergizeB(),
+      new Me.imports.src.effects.Fire.Fire(),
+      new Me.imports.src.effects.Glide.Glide(),
+      new Me.imports.src.effects.Glitch.Glitch(),
+      new Me.imports.src.effects.Hexagon.Hexagon(),
+      new Me.imports.src.effects.Incinerate.Incinerate(),
+      new Me.imports.src.effects.Matrix.Matrix(),
+      new Me.imports.src.effects.Pixelate.Pixelate(),
+      new Me.imports.src.effects.PixelWheel.PixelWheel(),
+      new Me.imports.src.effects.PixelWipe.PixelWipe(),
+      new Me.imports.src.effects.Portal.Portal(),
+      new Me.imports.src.effects.SnapOfDisintegration.SnapOfDisintegration(),
+      new Me.imports.src.effects.TRexAttack.TRexAttack(),
+      new Me.imports.src.effects.TVEffect.TVEffect(),
+      new Me.imports.src.effects.TVGlitch.TVGlitch(),
+      new Me.imports.src.effects.Wisps.Wisps(),
     ];
 
     // Load all of our resources.
@@ -76,6 +82,39 @@ class Extension {
 
     // Store a reference to the settings object.
     this._settings = ExtensionUtils.getSettings();
+
+    // Now we check whether the extension settings need to be migrated from a previous
+    // version. If this is the case, we defer the profile loading until this is finished.
+    const lastVersion = this._settings.get_int('last-extension-version');
+    if (lastVersion < Me.metadata.version) {
+      if (lastVersion <= 26) {
+        // If the profile migration fails for some reason, the callback will create a
+        // default profile instead.
+        migrate.fromVersion26().finally(() => {
+          this._loadProfiles();
+          this._settings.set_int('last-extension-version', Me.metadata.version);
+        });
+      } else {
+        this._loadProfiles();
+      }
+
+    } else {
+      this._loadProfiles();
+    }
+
+    // We reload all effect profiles whenever the currently edited profile in the
+    // preferences dialog changes. This is most likely a bit too often, but it will also
+    // happen whenever a new profile is created and whenever an old profile is deleted.
+    this._settings.connect('changed::active-profile', () => {
+      this._loadProfiles();
+    });
+
+    // This is used to get the desktop's color scheme.
+    this._shellSettings = new Gio.Settings({schema: 'org.gnome.desktop.interface'});
+
+    // Enable the window-picking D-Bus API for the preferences dialog.
+    this._windowPicker = new WindowPicker();
+    this._windowPicker.export();
 
     // We will use extensionThis to refer to the extension inside the patched methods.
     const extensionThis = this;
@@ -86,179 +125,174 @@ class Extension {
     this._upowerProxy = new UPowerProxy(Gio.DBus.system, 'org.freedesktop.UPower',
                                         '/org/freedesktop/UPower');
 
+    // This is used to get the current power profile.
+    try {
+      const PowerProfilesProxy = Gio.DBusProxy.makeProxyWrapper(
+        utils.getStringResource('/interfaces/net.hadess.PowerProfiles.xml'));
+      this._powerProfilesProxy = new PowerProfilesProxy(
+        Gio.DBus.system, 'net.hadess.PowerProfiles', '/net/hadess/PowerProfiles');
+    } catch (e) {
+      // Maybe the service is masked...
+    }
+
     // We will monkey-patch these methods. Let's store the original ones.
+    this._origShouldAnimateActor    = Main.wm._shouldAnimateActor;
+    this._origWaitForOverviewToHide = Main.wm._waitForOverviewToHide;
     this._origAddWindowClone        = Workspace.prototype._addWindowClone;
     this._origWindowRemoved         = Workspace.prototype._windowRemoved;
     this._origDoRemoveWindow        = Workspace.prototype._doRemoveWindow;
-    this._origShouldAnimateActor    = WindowManager.prototype._shouldAnimateActor;
-    this._origWaitForOverviewToHide = WindowManager.prototype._waitForOverviewToHide;
-    this._origDestroyWindowDone     = WindowManager.prototype._destroyWindowDone;
 
-    // We will also override these animation times.
-    this._origWindowTime = imports.ui.windowManager.DESTROY_WINDOW_ANIMATION_TIME;
-    this._origDialogTime = imports.ui.windowManager.DIALOG_DESTROY_WINDOW_ANIMATION_TIME;
+    // ------------------------------- patching the window animations outside the overview
 
-
-    // ------------------------------------------------ patching the window-open animation
-
-    // Here we add an effect to the window-open animation. This is done whenever a new
-    // window is created. Usually, there is no real window animation for opening windows
-    // in the overview - only the window's clone is animated - but thanks to the hacks
-    // below, we can show the real animations in the overview.
-
-    // If a window is created the transitions are set up in the async _mapWindow of the
+    // If a window is created, the transitions are set up in the async _mapWindow() of the
     // WindowManager:
-    // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/windowManager.js#L1452
-    // AFAIK, overriding this method is not possible as it's called by a signal to
-    // which it is bound via the bind() method. To tweak the async transition
-    // anyways, we override the actors ease() method once - the next time it will be
-    // called by the _mapWindow(), we will intercept it!
-    this._windowCreatedConnection =
-      global.display.connect('window-created', (d, metaWin) => {
-        let actor = metaWin.get_compositor_private();
+    // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/windowManager.js#L1436
+    // AFAIK, overriding this method is not possible as it's called by a signal to which
+    // it is bound via the bind() method. To tweak the async transition anyways, we
+    // override the actors ease() method once. We do this in _shouldAnimateActor() which
+    // is called right before the ease() in _mapWindow:
+    // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/windowManager.js#L1465
 
-        const orig = actor.ease;
-        actor.ease = function(...params) {
-          orig.apply(actor, params);
-          actor.ease = orig;
+    // The same trick is done for the window-close animation. This is set up in a similar
+    // fashion in the WindowManager's _destroyWindow():
+    // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/windowManager.js#L1525
+    // Here is _shouldAnimateActor() also called right before. So we use it again to
+    // monkey-patch the window actor's ease() once.
 
-          // There are cases where the ease() is called prior to mapping the actor. If
-          // the actor is not yet mapped, we defer the effect creation.
-          if (actor.mapped) {
-            extensionThis._setupEffect(actor, true);
-          } else {
-            const connectionID = actor.connect('notify::mapped', () => {
-              extensionThis._setupEffect(actor, true);
-              actor.disconnect(connectionID);
-            });
-          }
-        };
+    // We override WindowManager._shouldAnimateActor() also for another purpose: Usually,
+    // it returns false when we are in the overview. This prevents the window animations
+    // there. To enable animations in the overview, we check inside the method whether it
+    // was called by either _mapWindow or _destroyWindow. If so, we return true. Let's see
+    // if this breaks stuff left and right...
+    Main.wm._shouldAnimateActor = function(actor, types) {
+      const stack      = (new Error()).stack;
+      const forClosing = stack.includes('_destroyWindow@');
+      const forOpening = stack.includes('_mapWindow@');
+
+      // This is also called in other cases, for instance when minimizing windows. We are
+      // only interested in window opening and window closing for now.
+      if (forClosing || forOpening) {
+
+        // If there is an applicable effect profile, we intercept the ease() method to
+        // setup our own effect.
+        const chosenEffect = extensionThis._chooseEffect(actor, forOpening);
+
+        if (chosenEffect) {
+          // Store the original ease() method of the actor.
+          const orig = actor.ease;
+
+          // Now intercept the next call to actor.ease().
+          actor.ease = function(...params) {
+            // There is a really weird issue in GNOME Shell 44: A few non-GTK windows are
+            // resized directly after they are mapped on X11. This happens for instance
+            // for keepassxc after it was closed in the maximized state. As the
+            // _mapWindow() method is called asynchronously, the window is not yet visible
+            // when the resize happens. Hence, our ease-override is called for the resize
+            // animation instead of the window-open or window-close animation. This is not
+            // what we want. So we check again whether the ease() call is for the
+            // window-open or window-close animation. If not, we just call the original
+            // ease() method. See also:
+            // https://github.com/Schneegans/Burn-My-Windows/issues/335
+            const stack      = (new Error()).stack;
+            const forClosing = stack.includes('_destroyWindow@');
+            const forOpening = stack.includes('_mapWindow@');
+
+            if (forClosing || forOpening) {
+              // Quickly restore the original behavior. Nobody noticed, I guess :D
+              actor.ease = orig;
+
+              // And then create the effect!
+              extensionThis._setupEffect(actor, forOpening, chosenEffect.effect,
+                                         chosenEffect.profile);
+            } else {
+              orig.apply(this, params);
+            }
+          };
+
+          return true;
+        }
+      }
+
+      return extensionThis._origShouldAnimateActor.apply(this, [actor, types]);
+    };
+
+    // Make sure to remove any effects if requested by the window manager.
+    this._killEffectsSignal =
+      global.window_manager.connect('kill-window-effects', (wm, actor) => {
+        const shader = actor.get_effect('burn-my-windows-effect');
+        if (shader) {
+          shader.endAnimation();
+        }
       });
+
+
+    // --------------------------------------------- fix window animations in the overview
 
     // Some of the effects require that the window's actor is enlarged to provide a bigger
     // canvas to draw the effects. Outside the overview we can simply increase the scale
     // of the actor. However, if we are in the overview, we have to enlarge the clone of
     // the window as well.
     Workspace.prototype._addWindowClone = function(...params) {
-      const result = extensionThis._origAddWindowClone.apply(this, params);
+      const clone = extensionThis._origAddWindowClone.apply(this, params);
 
       // The parameters of this method changed a bit through the versions...
-      let realWindow, clone;
+      let realWindow, container;
 
       if (utils.shellVersionIs(3, 36)) {
-        clone      = result[0];
-        realWindow = clone.realWindow;
+        container  = clone[0];
+        realWindow = container.realWindow;
       } else if (utils.shellVersionIs(3, 38)) {
-        clone      = result._windowContainer;
+        container  = clone._windowContainer;
         realWindow = params[0].get_compositor_private();
       } else {
-        clone      = result.window_container;
+        container  = clone.window_container;
         realWindow = params[0].get_compositor_private();
       }
 
-      // Syncing the real window's scale with the scale of its clone only works on GNOME
-      // Shell 3.38+. So effects cannot scale windows in the overview of GNOME 3.36...
-      if (utils.shellVersionIsAtLeast(3, 38)) {
-        const xID = realWindow.connect('notify::scale-x', () => {
-          if (realWindow.scale_x > 0 && clone.allocation.get_size()[0] > 0) {
-            clone.scale_x = realWindow.scale_x;
-          }
-        });
+      // Store the overview clone as temporary members of the real window actor. When we
+      // set up the effect, we will check for the existence of these and enlarge the clone
+      // as needed.
+      realWindow._bmwOverviewClone          = clone;
+      realWindow._bmwOverviewCloneContainer = container;
 
-        const yID = realWindow.connect('notify::scale-y', () => {
-          if (realWindow.scale_y > 0 && clone.allocation.get_size()[1] > 0) {
-            clone.scale_y = realWindow.scale_y;
-          }
-        });
-
-        clone.connect('destroy', () => {
-          realWindow.disconnect(xID);
-          realWindow.disconnect(yID);
-        });
-      }
+      // Remove the temporary members again once the clone is deleted.
+      container.connect('destroy', () => {
+        delete realWindow._bmwOverviewClone;
+        delete realWindow._bmwOverviewCloneContainer;
+      });
 
       // This is actually needed for the window-close animation on GNOME Shell 3.36.
       // On GNOME 3.36, the window clone's 'destroy' handler only calls _removeWindowClone
       // but not _doRemoveWindow. The latter is required to trigger the repositioning of
       // the overview window layout. Therefore we call this method in addition.
       // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/gnome-3-36/js/ui/workspace.js#L1877
-      // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/workspace.js#L1405
+      // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/workspace.js#L1363
       if (utils.shellVersionIs(3, 36)) {
-        clone.connect('destroy', () => this._doRemoveWindow(clone.metaWindow));
+        container.connect('destroy', () => this._doRemoveWindow(container.metaWindow));
       }
 
-      return result;
+      return clone;
     };
 
     // Usually, windows are faded in after the overview is completely hidden. We enable
     // window-open animations by not waiting for this.
-    WindowManager.prototype._waitForOverviewToHide = async function() {
+    Main.wm._waitForOverviewToHide = async function() {
       return Promise.resolve();
-    };
-
-    // Here comes the ULTRA-HACK: The method below is called (amongst others) by the
-    // _destroyWindow and _mapWindow methods of the WindowManager. Usually, it returns
-    // false when we are in the overview. This prevents the window animations. As we
-    // cannot monkey-patch the _destroyWindow or _mapWindow methods themselves, we check
-    // inside the method below whether it was called by either of those. If so, we return
-    // true. Let's see if this breaks stuff left and right...
-    // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/windowManager.js#L1124
-    WindowManager.prototype._shouldAnimateActor = function(...params) {
-      const caller = (new Error()).stack.split('\n')[1];
-      if (caller.includes('_destroyWindow@') || caller.includes('_mapWindow@')) {
-        return true;
-      }
-      return extensionThis._origShouldAnimateActor.apply(this, params);
-    };
-
-
-    // ----------------------------------------------- patching the window-close animation
-
-    // The signal handler below and the following patch are all which is required outside
-    // of the overview. All other hacks further below are just required to defer the
-    // window-hiding in the overview until the effect is finished.
-
-    // The close animation is set up in WindowManager's _destroyWindow:
-    // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/windowManager.js#L1541
-    // As we cannot monkey-patch the _destroyWindow itself, we connect to the 'destroy'
-    // signal of the window manager and tweak the animation to our needs.
-    this._destroyConnection = global.window_manager.connect('destroy', (wm, actor) => {
-      this._setupEffect(actor, false);
-    });
-
-    // Once the window-close animation is is finished, the window manager's
-    // _destroyWindowDone is called. We use this to free the effect so that it can be
-    // re-used in future.
-    // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/windowManager.js#L1541
-    WindowManager.prototype._destroyWindowDone = function(shellwm, actor) {
-      if (this._destroying.has(actor)) {
-        const shader = actor.get_effect('burn-my-windows-effect');
-        if (shader) {
-          actor.remove_effect(shader);
-          shader.endAnimation();
-          shader.returnToFactory();
-        }
-      }
-
-      // Call the original method.
-      extensionThis._origDestroyWindowDone.apply(this, [shellwm, actor]);
     };
 
     // These three method overrides are mega-hacky! Usually, windows are not faded when
     // closed from the overview (why?). With these overrides we make sure that they are
     // actually faded out. To do this, _windowRemoved and _doRemoveWindow now check
     // whether there is a transition ongoing (via extensionThis._shouldDestroy). If that's
-    // the case, these methods do nothing. Are the actors removed in the end? I hope so.
-    // The _destroyWindow of the WindowManager sets the transitions up and should take
-    // care of removing the actors at the end of the transitions.
-    // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/workspace.js#L1301
+    // the case, these methods do nothing.
+    // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/workspace.js#L1258
     Workspace.prototype._windowRemoved = function(ws, metaWin) {
       if (extensionThis._shouldDestroy(this, metaWin)) {
         extensionThis._origWindowRemoved.apply(this, [ws, metaWin]);
       }
     };
 
-    // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/workspace.js#L1180
+    // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/workspace.js#L1137
     Workspace.prototype._doRemoveWindow = function(metaWin) {
       if (extensionThis._shouldDestroy(this, metaWin)) {
         extensionThis._origDoRemoveWindow.apply(this, [metaWin]);
@@ -325,19 +359,17 @@ class Extension {
     // Unregister our resources.
     Gio.resources_unregister(this._resources);
 
+    // Disable the window-picking D-Bus API.
+    this._windowPicker.unexport();
+
+    global.window_manager.disconnect(this._killEffectsSignal);
+
     // Restore the original window-open and window-close animations.
-    global.window_manager.disconnect(this._destroyConnection);
-    global.display.disconnect(this._windowCreatedConnection);
-
-    Workspace.prototype._addWindowClone            = this._origAddWindowClone;
-    Workspace.prototype._windowRemoved             = this._origWindowRemoved;
-    Workspace.prototype._doRemoveWindow            = this._origDoRemoveWindow;
-    WindowManager.prototype._shouldAnimateActor    = this._origShouldAnimateActor;
-    WindowManager.prototype._waitForOverviewToHide = this._origWaitForOverviewToHide;
-    WindowManager.prototype._destroyWindowDone     = this._origDestroyWindowDone;
-
-    imports.ui.windowManager.DESTROY_WINDOW_ANIMATION_TIME        = this._origWindowTime;
-    imports.ui.windowManager.DIALOG_DESTROY_WINDOW_ANIMATION_TIME = this._origDialogTime;
+    Workspace.prototype._addWindowClone = this._origAddWindowClone;
+    Workspace.prototype._windowRemoved  = this._origWindowRemoved;
+    Workspace.prototype._doRemoveWindow = this._origDoRemoveWindow;
+    Main.wm._shouldAnimateActor         = this._origShouldAnimateActor;
+    Main.wm._waitForOverviewToHide      = this._origWaitForOverviewToHide;
 
     if (WindowPreview) {
       WindowPreview.prototype._deleteAll = this._origDeleteAll;
@@ -350,86 +382,183 @@ class Extension {
 
   // ----------------------------------------------------------------------- private stuff
 
-  // This method adds one of the configured effects to the given actor. If forOpening is
-  // set to true, a effect from the enabled window-open animations is chosen, else an
-  // enabled window-close animation is used. This will also tweak the transitions of the
-  // given actor (e.g. scale it up if required).
-  _setupEffect(actor, forOpening) {
+  // This loads all effect profiles and assigns a priority to each profile. Whenever a
+  // window is opened or closed, the matching effect profile with the highest priority
+  // will be chosen.
+  // This method is called whenever the currently edited profile in the/ preferences
+  // dialog changes. This is most likely a bit too often, but it will also happen whenever
+  // a new profile is created and whenever an old profile is deleted.
+  _loadProfiles() {
 
-    // Only add effects to normal windows and dialog windows.
+    // Get all currently available profiles.
+    const profileManager = new ProfileManager();
+    this._profiles       = profileManager.getProfiles();
+
+    // Whenever the properties of a profile is changed in the settings, we may have to
+    // resort all profiles according to their priority.
+    const updatePriority = (p) => {
+      p.priority = profileManager.getProfilePriority(p.settings);
+      this._profiles.sort((a, b) => b.priority - a.priority);
+    };
+
+    // For each profile, assign an initial priority and update the priority whenever a
+    // related setting changes.
+    this._profiles.forEach(p => {
+      p.priority = profileManager.getProfilePriority(p.settings);
+      p.settings.connect('changed::profile-app', () => updatePriority(p));
+      p.settings.connect('changed::profile-animation-type', () => updatePriority(p));
+      p.settings.connect('changed::profile-window-type', () => updatePriority(p));
+      p.settings.connect('changed::profile-color-scheme', () => updatePriority(p));
+      p.settings.connect('changed::profile-power-mode', () => updatePriority(p));
+      p.settings.connect('changed::profile-power-profile', () => updatePriority(p));
+      p.settings.connect('changed::profile-high-priority', () => updatePriority(p));
+    });
+
+    // Sort all profiles initially according to their initial priority.
+    this._profiles.sort((a, b) => b.priority - a.priority);
+  }
+
+  // This method selects an effect profile matching the current circumstances. Then a
+  // random effect from its enabled effects will be selected. It returns null if no
+  // profile is currently applicable.
+  _chooseEffect(actor, forOpening) {
+
+    // For now, we only add effects to normal windows and dialog windows.
     const isNormalWindow = actor.meta_window.window_type == Meta.WindowType.NORMAL;
     const isDialogWindow =
       actor.meta_window.window_type == Meta.WindowType.MODAL_DIALOG ||
       actor.meta_window.window_type == Meta.WindowType.DIALOG;
 
     if (!isNormalWindow && !isDialogWindow) {
-      return;
+      return null;
     }
 
-    // We do nothing if a dialog got closed and we should not burn them.
-    const shouldDestroyDialogs = this._settings.get_boolean('destroy-dialogs');
+    // ----------------------------------------------- choose a profile and then an effect
 
-    // If an effect is to be previewed, we have to affect dialogs es well. This is
-    // because the preview window is a dialog window...
-    const action      = forOpening ? 'open' : 'close';
-    const previewNick = this._settings.get_string(action + '-preview-effect');
+    // Usually, we use the effect profile with the highest priority which matches the
+    // current circumstances. From this profile, we choose a random effect. However, if an
+    // effect is to be previewed, we choose the currently edited profile regardless of the
+    // circumstances.
+    let profile = null;
+    let effect  = null;
 
-    if (isDialogWindow && !shouldDestroyDialogs && previewNick == '') {
-      this._fixAnimationTimes(isDialogWindow, forOpening, null);
-      return;
+    // Hence, we first check if an effect is to be previewed.
+    const previewNick = this._settings.get_string('preview-effect');
+
+    if (previewNick != '') {
+      const activeProfile = this._settings.get_string('active-profile');
+      effect  = this._ALL_EFFECTS.find(effect => effect.getNick() == previewNick);
+      profile = this._profiles.find(p => p.path == activeProfile);
+
+      // Only preview the effect until the preview window is closed.
+      if (!profile || !forOpening) {
+        this._settings.set_string('preview-effect', '');
+      }
+    }
+    // If no effect is previewed, we use the effect profile with the highest priority
+    // which matches the current circumstances. From this profile, we choose a random
+    // effect.
+    else {
+
+      // These numbers match the indices in the Gtk.StringLists defined in the UI files
+      // (e.g. resources/ui/adw/prefs.ui).
+      const animationType = forOpening ? 1 : 2;
+      const windowType    = isNormalWindow ? 1 : 2;
+      const powerMode     = this._upowerProxy.OnBattery ? 1 : 2;
+
+      // Get the first profile whose constraints match the circumstances. The list is
+      // sorted by priority, so we are good to take the first match.
+      profile = this._profiles.find(p => {
+        const profileApp           = p.settings.get_string('profile-app');
+        const profileAnimationType = p.settings.get_int('profile-animation-type');
+        const profileWindowType    = p.settings.get_int('profile-window-type');
+        const profilePowerMode     = p.settings.get_int('profile-power-mode');
+        const profileColorScheme   = p.settings.get_int('profile-color-scheme');
+        const profilePowerProfile  = p.settings.get_int('profile-power-profile');
+
+        // First we check whether the animation type, window type, and power mode are
+        // matching.
+        let matches =
+          (profileAnimationType == 0 || profileAnimationType == animationType) &&
+          (profileWindowType == 0 || profileWindowType == windowType) &&
+          (profilePowerMode == 0 || profilePowerMode == powerMode);
+
+        // If that was the case, we also check the application name.
+        if (matches && profileApp != '') {
+          const wmClass = actor.meta_window.get_wm_class();
+
+          if (wmClass) {
+            const app = wmClass.toLowerCase();
+
+            // Split app names at |, remove any whitespace, and transform to lower case.
+            const profileApps =
+              profileApp.split('|').map(item => item.trim().toLowerCase());
+            matches = profileApps.includes(app);
+          } else {
+            matches = false;
+          }
+        }
+
+        // If the profile is still matching, we also check the color scheme.
+        if (matches && profileColorScheme != 0 && utils.shellVersionIsAtLeast(42, 0)) {
+          const colorScheme = this._shellSettings.get_string('color-scheme');
+          matches &= (profileColorScheme == 1 && colorScheme == 'default') ||
+            (profileColorScheme == 2 && colorScheme == 'prefer-dark');
+        }
+
+        // Finally, we may also have to check the power profile.
+        if (matches && profilePowerProfile != 0 && this._powerProfilesProxy) {
+          const powerProfile = this._powerProfilesProxy.ActiveProfile;
+
+          // To understand the numbers, please refer to the indices in the Gtk.StringList
+          // of the profile-power-profile Adw.ComboRow in resources/ui/adw/prefs.ui.
+          if (powerProfile == 'power-saver') {
+            matches &= profilePowerProfile == 1 || profilePowerProfile == 4;
+          } else if (powerProfile == 'balanced') {
+            matches &= profilePowerProfile == 2 || profilePowerProfile == 4 ||
+              profilePowerProfile == 5;
+          } else {
+            matches &= profilePowerProfile == 3 || profilePowerProfile == 5;
+          }
+        }
+
+        return matches;
+      });
+
+      // If we found a matching profile, choose a random effect from it.
+      if (profile) {
+
+        // Create a list of all enabled effects of this profile.
+        const enabled = this._ALL_EFFECTS.filter(effect => {
+          return profile.settings.get_boolean(`${effect.getNick()}-enable-effect`);
+        });
+
+        // And then choose a random effect.
+        if (enabled.length > 0) {
+          effect = enabled[Math.floor(Math.random() * enabled.length)];
+        }
+      }
     }
 
-    // We may have to do nothing if running on battery power.
-    if (this._settings.get_boolean('disable-on-battery') && this._upowerProxy.OnBattery &&
-        previewNick == '') {
-      this._fixAnimationTimes(isDialogWindow, forOpening, null);
-      return;
+    // If nothing was enabled, we have to do nothing :)
+    if (!effect || !profile) {
+      return null;
     }
+
+    return {effect: effect, profile: profile};
+  }
+
+  // This method adds the given effect using the settings from the given profile to the
+  // given actor.
+  _setupEffect(actor, forOpening, effect, profile) {
 
     // There is the weird case where an animation is already ongoing. This happens when a
     // window is closed which has been created before the session was started (e.g. when
     // GNOME Shell has been restarted in the meantime).
     const oldShader = actor.get_effect('burn-my-windows-effect');
     if (oldShader) {
-      actor.remove_effect(oldShader);
       oldShader.endAnimation();
-      oldShader.returnToFactory();
     }
-
-    // ------------------------------------------------------------------ choose an effect
-
-    // Now we chose a random effect from all enabled effects.
-    let effect = null;
-
-    // First we check if an effect is to be previewed.
-    if (previewNick != '') {
-      effect = this._ALL_EFFECTS.find(effect => effect.getNick() == previewNick);
-
-      // Only preview the effect once.
-      this._settings.set_string(action + '-preview-effect', '');
-
-    }
-    // Else we choose a random effect from all enabled effects.
-    else {
-
-      // Therefore, we first create a list of all currently enabled effects.
-      const enabled = this._ALL_EFFECTS.filter(effect => {
-        return this._settings.get_boolean(`${effect.getNick()}-${action}-effect`);
-      });
-
-      // And then choose a random effect.
-      if (enabled.length > 0) {
-        effect = enabled[Math.floor(Math.random() * enabled.length)];
-      }
-    }
-
-    // If nothing was enabled, we have to do nothing :)
-    if (effect == null) {
-      this._fixAnimationTimes(isDialogWindow, forOpening, null);
-      return;
-    }
-
-    // ----------------------------------------------------------- tweak actor transitions
 
     // If we are currently performing integration test, all animations are set to a fixed
     // duration and show a fixed frame from the middle of the animation.
@@ -439,123 +568,62 @@ class Extension {
     // windows are faded in / out scaled up / down slightly by GNOME Shell. Here, we tweak
     // the transitions so that nothing changes. The window stays opaque and is scaled to
     // actorScale.
-    const actorScale = effect.getActorScale(this._settings, forOpening, actor);
+    const actorScale = effect.getActorScale(profile.settings, forOpening, actor);
+
+    // All scaling is relative to the window's center.
+    actor.set_pivot_point(0.5, 0.5);
+    actor.opacity = 255;
+    actor.scale_x = actorScale.x;
+    actor.scale_y = actorScale.y;
+
+    // If we are in the overview, we have to enlarge the window's clone as well. We also
+    // disable the clone's overlay (e.g. its icon, name, and close button) during the
+    // animation.
+    if (actor._bmwOverviewClone && utils.shellVersionIsAtLeast(3, 38)) {
+      actor._bmwOverviewClone.overlayEnabled = false;
+      actor._bmwOverviewCloneContainer.set_pivot_point(0.5, 0.5);
+      actor._bmwOverviewCloneContainer.scale_x = actorScale.x;
+      actor._bmwOverviewCloneContainer.scale_y = actorScale.y;
+    }
+
+    // Now add a cool shader to our window actor!
+    const shader = effect.shaderFactory.getShader();
+    actor.add_effect_with_name('burn-my-windows-effect', shader);
+
+    // At the end of the animation, we restore the scale of the overview clone (if any)
+    // and call the methods which would have been called by the original ease() calls at
+    // the end of the standard fade-in animation.
+    const endID = shader.connect('end-animation', () => {
+      shader.disconnect(endID);
+
+      if (actor._bmwOverviewClone && utils.shellVersionIsAtLeast(3, 38)) {
+        actor._bmwOverviewClone.overlayEnabled   = true;
+        actor._bmwOverviewCloneContainer.scale_x = 1.0;
+        actor._bmwOverviewCloneContainer.scale_y = 1.0;
+      }
+
+      // Remove the shader and mark it being re-usable for future animations.
+      actor.remove_effect(shader);
+      shader.returnToFactory();
+
+      // Finally, once the animation is done or interrupted, we call the methods which
+      // should have been called by the original ease() methods.
+      // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/windowManager.js#L1487
+      // https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/windowManager.js#L1558.
+      if (forOpening) {
+        Main.wm._mapWindowDone(global.window_manager, actor);
+      } else {
+        Main.wm._destroyWindowDone(global.window_manager, actor);
+      }
+    });
 
     // To make things deterministic during testing, we set the effect duration to 5
     // seconds.
     const duration =
-      testMode ? 5000 : this._settings.get_int(effect.getNick() + '-animation-time');
+      testMode ? 5000 : profile.settings.get_int(effect.getNick() + '-animation-time');
 
-    // All animations are relative to the window's center.
-    actor.set_pivot_point(0.5, 0.5);
-
-
-    // We tweak the opacity and scale of the actor. If there is no ongoing transition for
-    // a property, a new one is set up.
-    const config = {'opacity': 255, 'scale-x': actorScale.x, 'scale-y': actorScale.y};
-
-    for (const property in config) {
-      let transition = actor.get_transition(property);
-
-      // If there is currently no ongoing transition, we create a new one. Clutter does
-      // not like to create transitions with the same start and end value - however, we
-      // need at least one transition for our progress value in the shader. So we trick
-      // Clutter by creating an arbitrary transition first and then modifying the start
-      // and end values according to our config object.
-      if (!transition) {
-        actor.set_property(property, 0);
-        actor.save_easing_state();
-        actor.set_easing_duration(1000);
-        actor.set_property(property, 1);
-        actor.restore_easing_state();
-
-        // Now there should be a transition!
-        transition = actor.get_transition(property);
-      }
-
-      // Tweak the transition according to the config object. For some reason, there are
-      // rare cases, where no transition is set up. This happens from time to time...
-      if (transition) {
-        transition.set_duration(duration);
-        transition.set_to(config[property]);
-        transition.set_from(config[property]);
-        transition.set_progress_mode(Clutter.AnimationMode.LINEAR);
-      }
-    }
-
-    // Once the transitions are finished, we restore the original actor size.
-    if (forOpening) {
-      const connectionID = actor.connect('transitions-completed', () => {
-        actor.scale_x = 1.0;
-        actor.scale_y = 1.0;
-        actor.disconnect(connectionID);
-      });
-    }
-
-
-    // -------------------------------------------------------------------- add the shader
-
-    // Now add a cool shader to our window actor!
-    const shader = effect.shaderFactory.getShader();
-
-    // There should always be an opacity transition going on...
-    const transition = actor.get_transition('opacity');
-
-    if (!transition) {
-      this._fixAnimationTimes(isDialogWindow, forOpening, null);
-      utils.debug('Cannot setup shader without opacity transition.')
-      return;
-    }
-
-    // Assign the effect to the window actor!
-    actor.add_effect_with_name('burn-my-windows-effect', shader);
-
-    // Set one-time uniforms.
-    shader.beginAnimation(this._settings, forOpening, duration * 0.001, actor);
-
-    // Set other uniforms each frame.
-    transition.connect('new-frame', (t) => {
-      if (testMode) {
-        shader.updateAnimation(0.5);
-      } else {
-        shader.updateAnimation(t.get_progress());
-      }
-    });
-
-    // Remove the effect if the animation finished or was interrupted.
-    if (forOpening) {
-      transition.connect('stopped', () => {
-        const oldShader = actor.get_effect('burn-my-windows-effect');
-        if (oldShader) {
-          actor.remove_effect(oldShader);
-          oldShader.endAnimation();
-          oldShader.returnToFactory();
-        }
-      });
-    }
-
-    // Finally, ensure that all animation times are set properly so that other extensions
-    // may guess how long it will take until windows are gone :)
-    this._fixAnimationTimes(isDialogWindow, forOpening, duration);
-  }
-
-  // The code below is not necessary for Burn-My-Windows to function. However, there
-  // are some extensions such as "Show Application View When Workspace Empty"
-  // https://extensions.gnome.org/extension/2036/show-application-view-when-workspace-empty/
-  // which do something *after* a window was closed. As the window-close animation
-  // duration depends on the used effect, this may vary each time a window is
-  // closed. We set the currently used time here, so that others can get an idea how
-  // long this will take...
-  _fixAnimationTimes(isDialogWindow, forOpening, duration) {
-    if (!forOpening) {
-      if (isDialogWindow) {
-        imports.ui.windowManager.DIALOG_DESTROY_WINDOW_ANIMATION_TIME =
-          duration != null ? duration : this._origDialogTime;
-      } else {
-        imports.ui.windowManager.DESTROY_WINDOW_ANIMATION_TIME =
-          duration != null ? duration : this._origWindowTime;
-      }
-    }
+    // Finally start the animation!
+    shader.beginAnimation(profile.settings, forOpening, testMode, duration, actor);
   }
 
   // This is required to enable window-close animations in the overview. See the comment
@@ -569,11 +637,9 @@ class Extension {
     // This was called "realWindow" in GNOME 3.36.
     const propertyName = utils.shellVersionIs(3, 36) ? 'realWindow' : '_windowActor';
     const actor        = workspace._windows[index][propertyName];
-    if (!actor.get_transition('scale-y')) {
-      return true;
-    }
+    const shader       = actor.get_effect('burn-my-windows-effect');
 
-    return false;
+    return shader == null;
   }
 }
 

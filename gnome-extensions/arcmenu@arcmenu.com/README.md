@@ -18,7 +18,7 @@ ArcMenu is an application menu for GNOME Shell, designed to provide a more famil
 
 ArcMenu is provided free of charge. If you enjoy using ArcMenu and wish to help support the project, feel free to use the link below!
 
-[![Donate via Paypal](https://gitlab.com/arcmenu/arcmenu-assets/raw/master/images/paypal_donate.png)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=53CWA7NR743WC&item_name=Donate+to+support+my+work&currency_code=USD&source=url)
+[![Donate via Paypal](https://gitlab.com/arcmenu/arcmenu-assets/raw/master/images/paypal_donate.png)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=53CWA7NR743WC&item_name=Support+ArcMenu&currency_code=USD&source=url)
 
 
 -----
@@ -58,24 +58,24 @@ Additional credits:
 
 **@[charlesg99](https://github.com/charlesg99)** | **@[harshadgavali](https://gitlab.com/harshadgavali)** | **@[O. Giesmann ](https://gitlab.com/Etamuk)** | **@[aleayr ](https://gitlab.com/aleayr)**
 
-**@[JasonLG1979](https://github.com/JasonLG1979)**  | **@[lexruee](https://github.com/lexruee)** | **@[aleayr ](https://gitlab.com/aleayr)**
+**@[JasonLG1979](https://github.com/JasonLG1979)**  | **@[lexruee](https://github.com/lexruee)** | **@[aleayr](https://gitlab.com/aleayr)** | **@[osmancoskun](https://gitlab.com/osmancoskun) !184**
 
 -----
 
 ### Translators
 
-**@[Nilvus](https://gitlab.com/Nilvus), @[steve.kossouho](https://gitlab.com/steve.kossouho) - French** | **@[Etamuk](https://gitlab.com/Etamuk) - German** | **@[alex4401](https://gitlab.com/alex4401), @[Karpfly](https://gitlab.com/MacKarp) - Polish** | **@[frnogueira](https://gitlab.com/frnogueira), @[Z Bed](https://gitlab.com/zbed) - Brazilian Portuguese** | **@[sigbjokj](https://gitlab.com/sigbjokj), @[sssandum](https://gitlab.com/sssandum) - Norwegian**
+**@[Nilvus](https://gitlab.com/Nilvus), @[steve.kossouho](https://gitlab.com/steve.kossouho) - French** | **@[Etamuk](https://gitlab.com/Etamuk) - German** | **@[alex4401](https://gitlab.com/alex4401), @[Karpfly](https://gitlab.com/MacKarp) - Polish** | **@[frnogueira](https://gitlab.com/frnogueira), @[Z Bed](https://gitlab.com/zbed), @[perry.werneck](https://gitlab.com/perry.werneck) - Brazilian Portuguese** | **@[sigbjokj](https://gitlab.com/sigbjokj), @[sssandum](https://gitlab.com/sssandum) - Norwegian**
 
- **@[Ivan](https://gitlab.com/vantu5z), @[Ser82-png](https://gitlab.com/Ser82-png) - Russian** | **@[gkkulik](https://gitlab.com/gkkulik) - Silesian** | **@[vikaig](https://gitlab.com/vikaig) - Ukrainian** | **@[jordim](https://gitlab.com/jordim) - Catalan** | **@[aylinux](https://gitlab.com/aylinux), @[libreajans](https://gitlab.com/libreajans) - Turkish**
+ **@[Ivan](https://gitlab.com/vantu5z), @[Ser82-png](https://gitlab.com/Ser82-png) - Russian** | **@[gkkulik](https://gitlab.com/gkkulik) - Silesian** | **@[vikaig](https://gitlab.com/vikaig) - Ukrainian** | **@[jordim](https://gitlab.com/jordim) - Catalan** | **@[aylinux](https://gitlab.com/aylinux), @[libreajans](https://gitlab.com/libreajans), @[Sabri Ünal](https://gitlab.com/sabriunal) - Turkish**
  
 
-**@[MorganAntonsson](https://gitlab.com/MorganAntonsson) - Swedish** | **@[jiri.doubravsky](https://gitlab.com/jiri.doubravsky), @[panmourovaty ](https://gitlab.com/panmourovaty) - Czech** | **@[juanlucer](https://gitlab.com/juanlucer), @[pjunyent](https://gitlab.com/pjunyent), @[Sergio](https://gitlab.com/IngrownMink4) - Spanish** | **@[plesry](https://gitlab.com/plesry) - Chinese (Taiwan)** | **@[Vombato](https://gitlab.com/Vombato), @[matguidi](https://gitlab.com/matguidi) - Italian**
+**@[MorganAntonsson](https://gitlab.com/MorganAntonsson) - Swedish** | **@[jiri.doubravsky](https://gitlab.com/jiri.doubravsky), @[panmourovaty](https://gitlab.com/panmourovaty), @[Amerey ](https://gitlab.com/Amerey.eu) - Czech** | **@[juanlucer](https://gitlab.com/juanlucer), @[pjunyent](https://gitlab.com/pjunyent), @[Sergio](https://gitlab.com/IngrownMink4) - Spanish** | **@[plesry](https://gitlab.com/plesry) - Chinese (Taiwan)** | **@[Vombato](https://gitlab.com/Vombato), @[matguidi](https://gitlab.com/matguidi) - Italian**
 
-**@[skygmin](https://gitlab.com/skygmin), @[doufu3344](https://gitlab.com/doufu3344) - Simplified Chinese** | **@[Vistaus](https://gitlab.com/Vistaus), @[vinno97](https://gitlab.com/vinno97) - Dutch** | **@[artnay](https://gitlab.com/artnay) - Finnish** |  **@[rimasx](https://gitlab.com/rimasx) - Estonian** | **@[stevendobay](https://gitlab.com/stevendobay) - Hungarian** 
+**@[skygmin](https://gitlab.com/skygmin), @[doufu3344](https://gitlab.com/doufu3344) - Simplified Chinese** | **@[Vistaus](https://gitlab.com/Vistaus), @[vinno97](https://gitlab.com/vinno97) - Dutch** | **@[artnay](https://gitlab.com/artnay) - Finnish** |  **@[rimasx](https://gitlab.com/rimasx) - Estonian** | **@[stevendobay](https://gitlab.com/stevendobay), @[Balázs Meskó](https://gitlab.com/meskobalazs) - Hungarian** 
 
-**@[omeritzics](https://gitlab.com/omeritzics) - Hebrew** | **@[prescott66](https://gitlab.com/prescott66) - Slovak** | **@[Mejans](https://gitlab.com/Mejans), @[Quentin](https://gitlab.com/quenty_occitania) - Occitan** | **@[TokaiTeio](https://gitlab.com/tokaiteio) - Korean** |  **@[sayuri](https://gitlab.com/sayuri-), @[helabasa](https://gitlab.com/helabasa) - Sinhalese**
+**@[omeritzics](https://gitlab.com/omeritzics) - Hebrew** | **@[prescott66](https://gitlab.com/prescott66) - Slovak** | **@[Mejans](https://gitlab.com/Mejans), @[Quentin](https://gitlab.com/quenty_occitania) - Occitan** | **@[KY4LU](https://gitlab.com/mjkim__) - Korean** |  **@[sayuri](https://gitlab.com/sayuri-), @[helabasa](https://gitlab.com/helabasa) - Sinhalese**
 
-**@[Latgardi](https://gitlab.com/Latgardi) - Belarusian**
+**@[Latgardi](https://gitlab.com/Latgardi) - Belarusian** | **@[Hayao0819](https://gitlab.com/Hayao0819) - Japanese**
 
 -----
 
@@ -134,6 +134,8 @@ Linux - is the registered trademark of Linus Torvalds in the U.S. and other coun
 (name) and (logo)
 
 * **ZORIN OS** - The "Z" logomark is a registered trademark of Zorin Technology Group Ltd. Copyright © 2019 - 2021 Zorin Technology Group Ltd
+
+* **Pardus** - Pardus is a trademark of the TUBITAK ULAKBIM. Copyright © 2003–2023 TUBITAK ULAKBIM
 
 </p>
 </details>

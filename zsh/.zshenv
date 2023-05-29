@@ -11,6 +11,8 @@ export NVM_DIR="$HOME/.nvm"
 # bun
 export BUN_INSTALL="$HOME/.bun"
 
+export CHROME_EXECUTABLE="vivaldi-stable"
+
 path+=("$HOME/.flutter/bin")
 path+=("$BUN_INSTALL/bin")
 path+=("$HOME/.local/bin")

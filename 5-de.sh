@@ -7,4 +7,4 @@ sudo pacman -Rns gdm --noconfirm
 
 systemctl enable ly.service
 
-cp -r ./gnome-extensions/ ~/.local/share/gnome-shell/extensions
+cp -R ~/arch-dotfiles/gnome-extensions/* ~/.local/share/gnome-shell/extensions/
