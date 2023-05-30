@@ -12,16 +12,16 @@ decoration: none
 
 font:
   normal:
-    family: Fira Code Retina
+    family: FiraCode Nerd Font
 
   bold:
-    family: Fira Code Retina
+    family: FiraCode Nerd Font Bold
 
   italic:
-    family: Fira Code Retina
+    family: FiraCode Nerd Font Italic
 
   bold_italic:
-    family: Fira Code Retina
+    family: FiraCode Nerd Font Bold Italic
 
   size: 10
 
