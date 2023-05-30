@@ -23,7 +23,7 @@ then
 fi
 
 # Fonts
-paru -S --noconfirm ttf-fira-code ttf-ms-fonts
+paru -S --noconfirm ttf-firacode-nerd ttf-ms-fonts noto-fonts-cjk
 
 # Install TMUX
 sudo pacman -S --noconfirm tmux | lolcat
