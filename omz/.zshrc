@@ -6,7 +6,7 @@ plugins=(git sudo zsh-autosuggestions zsh-syntax-highlighting)
 
 source $ZSH/oh-my-zsh.sh
 
-alias ls="lsd --icon-theme unicode --long"
+alias ls="lsd"
 alias cat="bat"
 
 reload() {
