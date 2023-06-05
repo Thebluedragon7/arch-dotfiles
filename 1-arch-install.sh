@@ -11,6 +11,11 @@ curl https://bun.sh/install | bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
 
 
+# Install and setup rust
+sudo pacman -S --noconfirm rustup
+rustup update stable
+rustup self upgrade-data
+
 # Make .src dir on home for storing build files which will be deleted at last
 mkdir ~/.src
 
@@ -26,10 +31,10 @@ fi
 paru -S --noconfirm ttf-firacode-nerd ttf-ms-fonts noto-fonts-cjk
 
 # Install TMUX
-sudo pacman -S --noconfirm tmux | lolcat
+sudo pacman -S --noconfirm tmux
 
 # Package managers and Text Editor
-sudo pacman -S --noconfirm flatpak neovim | lolcat
+sudo pacman -S --noconfirm flatpak neovim
 
 
 paru -S flatseal touchegg --noconfirm
