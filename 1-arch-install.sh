@@ -42,16 +42,15 @@ paru -S flatseal touchegg --noconfirm
 
 [ ! -d ~/.config ] && mkdir ~/.config
 
-echo "[+] Installing VimPlug" | lolcat -a
-paru -S --noconfirm vim-plug
+echo "[+] Installing Nvim Packer (LUA)" | lolcat -a
 
 echo "[+] Configuring NeoVim" | lolcat -a
 if [ ! -d ~/.config/nvim ]; then
     mkdir ~/.config/nvim
-    ln -s ~/arch-dotfiles/nvim/init.vim ~/.config/nvim/init.vim
+    ln -s ~/arch-dotfiles/nvim/init.lua ~/.config/nvim/init.lua
 else
-    mv ~/.config/nvim/init.vim ~/.config/nvim/init.vim.old
-    ln -s ~/arch-dotfiles/nvim/init.vim ~/.config/nvim/init.vim
+    mv ~/.config/nvim/init.lua ~/.config/nvim/init.lua.old
+    ln -s ~/arch-dotfiles/nvim/init.lua ~/.config/nvim/init.lua
 fi
 
 echo "[+] Configuring kitty" | lolcat -a

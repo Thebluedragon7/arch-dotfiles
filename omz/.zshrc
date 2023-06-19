@@ -8,6 +8,8 @@ source $ZSH/oh-my-zsh.sh
 
 alias ls="lsd"
 alias cat="bat"
+alias vi="nvim"
+alias vim="nvim"
 
 reload() {
     echo "[+] Reloading .zshrc" | lolcat -a

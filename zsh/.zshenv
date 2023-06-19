@@ -16,5 +16,6 @@ export CHROME_EXECUTABLE="vivaldi-stable"
 path+=("$HOME/.flutter/bin")
 path+=("$BUN_INSTALL/bin")
 path+=("$HOME/.local/bin")
+path+=("$HOME/.cargo/bin")
 
 export PATH
